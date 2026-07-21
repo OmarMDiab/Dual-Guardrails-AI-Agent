@@ -1,0 +1,12 @@
+# Guardrails for input & output: -
+- nvidia/nemotron-3.5-content-safety
+- nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+
+# Main LLM (set FINBOT_MODEL= in .env to switch): -
+# FINBOT_MODEL=ultra  (default)
+- "nvidia/nemotron-3-ultra-550b-a55b"   # 550B / 55B-active, reasoning, up to 10 min/response
+# FINBOT_MODEL=super
+- "nvidia/nemotron-3-super-120b-a12b"   # 120B / 12B-active, reasoning, ~3× faster
+
+# Embedding model: -
+- "nvidia/llama-nemotron-embed-1b-v2"

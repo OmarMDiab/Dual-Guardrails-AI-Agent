@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinBot AI Financial Advisor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='url(%23g)'/><polyline points='15 72 32 45 44 58 62 30 85 44' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'/><defs><linearGradient id='g' x1='0' y1='0' x2='100' y2='100'><stop offset='0%25' stop-color='%2310b981'/><stop offset='100%25' stop-color='%23065f46'/></linearGradient></defs></svg>" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+
+<!-- ─── Animated Background ─────────────────────────────────────── -->
+<div class="bg-canvas" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="grid-overlay"></div>
+</div>
+
+<!-- ─── API Key Error Banner ──────────────────────────────────────── -->
+{% if init_error %}
+<div class="api-banner" id="apiBanner">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+  <strong>Configuration Error:</strong>&nbsp;{{ init_error }}&nbsp;—&nbsp;Set <code>NVIDIA_API_KEY</code> in your <code>.env</code> file and restart.
+  <button onclick="document.getElementById('apiBanner').remove()">✕</button>
+</div>
+{% endif %}
+
+<!-- ─── App Shell ─────────────────────────────────────────────────── -->
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+            <polyline points="16 7 22 7 22 13"></polyline>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-name">FinBot</div>
+          <div class="logo-sub">AI Financial Advisor</div>
+          <div class="logo-model">{{ model_label }}</div>
+        </div>
+      </div>
+
+      <!-- New Chat -->
+      <button class="btn-new-chat" id="newChatBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Conversation
+      </button>
+
+      <!-- Quick Topics -->
+      <div class="section-block">
+        <div class="section-label">Quick Topics</div>
+        <div class="chips">
+          <button class="chip" data-q="What are the key investment insights from BlackRock's 2026 mid-year outlook?">📋 BlackRock 2026 Outlook</button>
+          <button class="chip" data-q="Summarize the Federal Reserve Beige Book findings for June 2026">🏦 Fed Beige Book June 2026</button>
+          <button class="chip" data-q="What does Vanguard say about retirement income principles?">🎯 Vanguard Retirement Income</button>
+          <button class="chip" data-q="What is Vanguard's core-satellite approach to hedging inflation?">🛡️ Vanguard Inflation Hedging</button>
+          <button class="chip" data-q="What does Vanguard recommend for global equity diversification?">🌍 Vanguard Global Equity</button>
+          <button class="chip" data-q="How does asset location affect investment returns according to Vanguard?">📊 Vanguard Asset Location</button>
+          <button class="chip" data-q="What macro risks does BlackRock highlight for investors in 2026?">⚠️ BlackRock Macro Risks</button>
+          <button class="chip" data-q="What does the Fed Beige Book say about economic conditions and inflation?">📈 Fed Economic Conditions</button>
+        </div>
+      </div>
+
+      <!-- Knowledge Base -->
+      <div class="section-block">
+        <div class="section-label">Knowledge Base</div>
+        <div class="kb-list">
+          <div class="kb-item">
+            <span class="kb-dot kb-blackrock"></span>
+            <div>
+              <div class="kb-source">BlackRock</div>
+              <div class="kb-doc">BII Mid-Year Outlook 2026</div>
+            </div>
+          </div>
+          <div class="kb-item">
+            <span class="kb-dot kb-fed"></span>
+            <div>
+              <div class="kb-source">Federal Reserve</div>
+              <div class="kb-doc">Beige Book — Jun 2026</div>
+            </div>
+          </div>
+          <div class="kb-item">
+            <span class="kb-dot kb-vanguard"></span>
+            <div>
+              <div class="kb-source">Vanguard (4 reports)</div>
+              <div class="kb-doc">Retirement · Equity · Inflation · Asset Location</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Market Pulse (live via /api/market) -->
+    <div class="market-pulse">
+      <div class="section-label">Market Pulse <span id="pulse-ts" style="font-weight:400;opacity:.5"></span></div>
+      <div class="market-row" id="pulse-row-0"><span class="ticker-sym">S&P 500</span><span class="ticker-val">—</span><span class="ticker-chg">—</span></div>
+      <div class="market-row" id="pulse-row-1"><span class="ticker-sym">NASDAQ</span><span class="ticker-val">—</span><span class="ticker-chg">—</span></div>
+      <div class="market-row" id="pulse-row-2"><span class="ticker-sym">DOW</span><span class="ticker-val">—</span><span class="ticker-chg">—</span></div>
+      <div class="market-row" id="pulse-row-3"><span class="ticker-sym">BTC/USD</span><span class="ticker-val">—</span><span class="ticker-chg">—</span></div>
+      <div class="market-row" id="pulse-row-4"><span class="ticker-sym">Gold</span><span class="ticker-val">—</span><span class="ticker-chg">—</span></div>
+      <p class="market-note">Live data · yfinance + CoinGecko</p>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="powered-by">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Powered by NVIDIA AI
+      </div>
+      <p class="footer-note">Educational purposes only. Not financial advice.</p>
+    </div>
+  </aside>
+
+  <!-- Main Chat -->
+  <main class="chat-main">
+
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">FinBot Ready</span>
+        </div>
+        <div class="model-badge">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          {{ model_label }}
+        </div>
+        <div class="guard-badge">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.25-3.75 10.15-9 11.35C6.75 21.15 3 16.25 3 11V5l9-4z"/></svg>
+          Nemotron-Safety + Nemotron-Guard
+        </div>
+      </div>
+      <button class="btn-icon" id="clearBtn" title="Clear conversation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </header>
+
+    <!-- Messages -->
+    <div class="messages" id="messages">
+      <!-- Welcome screen -->
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <rect width="52" height="52" rx="14" fill="url(#wg)"/>
+            <polyline points="10 38 18 26 24 32 32 18 42 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="wg" x1="0" y1="0" x2="52" y2="52">
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#065f46"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1>Welcome to <span class="grad">FinBot</span></h1>
+        <p>Your AI-powered financial insights assistant. Ask me to analyze financial reports from BlackRock, the Federal Reserve, and Vanguard — or explore investment strategies and market insights.</p>
+        <div class="suggest-grid">
+          <div class="suggest-card" data-q="What are the key investment insights from BlackRock's 2026 mid-year outlook?" onclick="injectSuggestion(this)">
+            <span class="suggest-icon">📋</span>
+            <div>
+              <strong>BlackRock 2026 Outlook</strong>
+              <span>What are the key investment insights from BlackRock's mid-year report?</span>
+            </div>
+          </div>
+          <div class="suggest-card" data-q="Summarize the Federal Reserve Beige Book findings for June 2026" onclick="injectSuggestion(this)">
+            <span class="suggest-icon">🏦</span>
+            <div>
+              <strong>Fed Beige Book Analysis</strong>
+              <span>Summarize the Federal Reserve Beige Book findings for June 2026</span>
+            </div>
+          </div>
+          <div class="suggest-card" data-q="What does Vanguard say about retirement income principles and sustainable withdrawal strategies?" onclick="injectSuggestion(this)">
+            <span class="suggest-icon">🎯</span>
+            <div>
+              <strong>Vanguard Retirement Income</strong>
+              <span>What does Vanguard say about sustainable withdrawal strategies?</span>
+            </div>
+          </div>
+          <div class="suggest-card" data-q="What macro risks and opportunities does BlackRock identify for equity investors in 2026?" onclick="injectSuggestion(this)">
+            <span class="suggest-icon">📊</span>
+            <div>
+              <strong>2026 Macro Insights</strong>
+              <span>What macro risks and opportunities do the reports highlight for 2026?</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-zone">
+      <div class="input-box" id="inputBox">
+        <textarea
+          id="msgInput"
+          placeholder="Ask FinBot about investments, markets, retirement, budgeting…"
+          rows="1"
+          maxlength="2000"
+        ></textarea>
+        <div class="input-controls">
+          <span class="char-count" id="charCount">0 / 2000</span>
+          <button class="btn-send" id="sendBtn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="input-caption">FinBot provides educational financial information only — not personalized investment advice.</p>
+    </div>
+  </main>
+</div>
+
+<!-- ─── Ticker Tape ────────────────────────────────────────────────── -->
+<div class="ticker-bar" aria-hidden="true">
+  <div class="ticker-track" id="ticker-track">
+    <span style="color:var(--t3)">Loading live data…</span>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
