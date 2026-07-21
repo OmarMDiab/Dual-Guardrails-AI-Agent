@@ -39,11 +39,10 @@ Browser  ──SSE──►  Flask (app.py)
 
 Set `FINBOT_MODEL` in `.env` to choose:
 
-| Value                 | Model                               | Speed    | Notes                                           |
-| --------------------- | ----------------------------------- | -------- | ----------------------------------------------- |
-| `llama` **(default)** | `meta/llama-3.3-70b-instruct`       | ~5–15 s  | No thinking overhead, best tool use reliability |
-| `super`               | `nvidia/nemotron-3-super-120b-a12b` | ~30–90 s | 12B active params, chain-of-thought reasoning   |
-| `ultra`               | `nvidia/nemotron-3-ultra-550b-a55b` | ~1–5 min | 55B active params, highest quality              |
+| Value                 | Model                               | Speed    | Notes                                         |
+| --------------------- | ----------------------------------- | -------- | --------------------------------------------- |
+| `super` **(default)** | `nvidia/nemotron-3-super-120b-a12b` | ~30–90 s | 12B active params, chain-of-thought reasoning |
+| `ultra`               | `nvidia/nemotron-3-ultra-550b-a55b` | ~1–5 min | 55B active params, highest quality            |
 
 ---
 
@@ -180,4 +179,4 @@ The ingest script handles chunking (1,000 chars / 200 overlap), embedding, and u
 ## License
 
 For educational and non-commercial use. Model licenses apply per the respective NVIDIA and Meta model cards.
-"# FinBot" 
+"# FinBot"
