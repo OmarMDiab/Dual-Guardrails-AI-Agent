@@ -19,6 +19,8 @@ A full-stack AI financial chatbot built on NVIDIA's API with dual safety guardra
 
 ## Architecture
 
+![FinBot System Architecture](assets/Finbot%20System%20Architecture.png)
+
 ```
 Browser  ──SSE──►  Flask (app.py)
                       │
