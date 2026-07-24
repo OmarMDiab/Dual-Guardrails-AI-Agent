@@ -177,8 +177,3 @@ The ingest script handles chunking (1,000 chars / 200 overlap), embedding, and u
 - **Section D** — Advisory mode enforcement
 
 ---
-
-## License
-
-For educational and non-commercial use. Model licenses apply per the respective NVIDIA and Meta model cards.
-"# FinBot"
