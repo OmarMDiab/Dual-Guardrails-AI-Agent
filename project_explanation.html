@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FinBot — Full Project Explanation</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:        #0a0f1e;
+  --bg2:       #0f1628;
+  --bg3:       #141d35;
+  --bg4:       #1a2540;
+  --border:    rgba(255,255,255,.08);
+  --border2:   rgba(255,255,255,.14);
+  --green:     #10b981;
+  --green2:    #059669;
+  --green3:    #34d399;
+  --blue:      #3b82f6;
+  --blue2:     #60a5fa;
+  --amber:     #f59e0b;
+  --amber2:    #fbbf24;
+  --red:       #ef4444;
+  --red2:      #f87171;
+  --purple:    #8b5cf6;
+  --purple2:   #a78bfa;
+  --cyan:      #06b6d4;
+  --t1:        #f8fafc;
+  --t2:        #cbd5e1;
+  --t3:        #94a3b8;
+  --t4:        #64748b;
+  --code-bg:   #0d1425;
+  --radius:    12px;
+  --radius-sm: 8px;
+  --shadow:    0 4px 24px rgba(0,0,0,.45);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,.65);
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--t2);
+  line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATED BACKGROUND
+═══════════════════════════════════════════════════════════════ */
+.bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.12}
+.orb1{width:700px;height:700px;background:radial-gradient(circle,#10b981,transparent);top:-200px;left:-200px;animation:drift1 20s ease-in-out infinite}
+.orb2{width:600px;height:600px;background:radial-gradient(circle,#3b82f6,transparent);bottom:-200px;right:-200px;animation:drift2 25s ease-in-out infinite}
+.orb3{width:400px;height:400px;background:radial-gradient(circle,#8b5cf6,transparent);top:50%;left:50%;transform:translate(-50%,-50%);animation:drift3 18s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(80px,60px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-80px,-60px)}}
+@keyframes drift3{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-48%,-52%)}}
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════════ */
+.layout{display:flex;min-height:100vh;position:relative;z-index:1}
+
+/* ─ Sidebar ─ */
+.sidebar{
+  width:270px;min-width:270px;background:var(--bg2);
+  border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:24px 16px;
+  scrollbar-width:thin;scrollbar-color:var(--bg4) transparent;
+}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+
+.logo-wrap{display:flex;align-items:center;gap:12px;margin-bottom:28px;padding:0 4px}
+.logo-icon{
+  width:44px;height:44px;border-radius:12px;
+  background:linear-gradient(135deg,var(--green),var(--green2));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(16,185,129,.4);
+  flex-shrink:0;
+}
+.logo-name{font-size:1.2rem;font-weight:700;color:var(--t1);letter-spacing:.3px}
+.logo-sub{font-size:.7rem;color:var(--t3)}
+
+.nav-section{margin-bottom:8px}
+.nav-label{
+  font-size:.62rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--t4);
+  padding:8px 10px 4px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--radius-sm);
+  color:var(--t3);font-size:.82rem;cursor:pointer;
+  transition:all .15s;text-decoration:none;
+  border:none;background:none;width:100%;text-align:left;
+}
+.nav-item:hover{background:var(--bg3);color:var(--t1)}
+.nav-item.active{background:rgba(16,185,129,.12);color:var(--green3);border-left:2px solid var(--green)}
+.nav-icon{width:15px;height:15px;flex-shrink:0}
+.nav-num{
+  margin-left:auto;background:rgba(255,255,255,.07);
+  font-size:.65rem;padding:2px 7px;border-radius:20px;color:var(--t4);
+}
+
+/* ─ Main ─ */
+.main{flex:1;min-width:0;padding:48px 56px;max-width:1060px;margin:0 auto}
+@media(max-width:1200px){.main{padding:32px 28px}}
+@media(max-width:768px){.sidebar{display:none}.main{padding:24px 16px}}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════════════ */
+.hero{text-align:center;padding:56px 24px 40px;margin-bottom:48px;
+  background:linear-gradient(135deg,rgba(16,185,129,.05),rgba(59,130,246,.05));
+  border:1px solid var(--border);border-radius:20px;
+  position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 600px 300px at 50% 0%,rgba(16,185,129,.08),transparent);
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);
+  color:var(--green3);font-size:.72rem;font-weight:600;
+  padding:5px 14px;border-radius:20px;margin-bottom:20px;letter-spacing:.05em;
+}
+.hero h1{
+  font-size:2.8rem;font-weight:800;color:var(--t1);
+  line-height:1.15;margin-bottom:12px;
+}
+.hero h1 span{
+  background:linear-gradient(135deg,var(--green3),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero p{font-size:1rem;color:var(--t3);max-width:580px;margin:0 auto 28px;line-height:1.7}
+.tech-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tech-pill{
+  background:var(--bg3);border:1px solid var(--border2);
+  color:var(--t2);font-size:.72rem;font-weight:500;
+  padding:4px 12px;border-radius:20px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTIONS
+═══════════════════════════════════════════════════════════════ */
+.section{margin-bottom:64px;scroll-margin-top:24px}
+.section-header{margin-bottom:28px}
+.section-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);
+  color:var(--blue2);padding:3px 10px;border-radius:20px;margin-bottom:12px;
+}
+.section h2{font-size:1.65rem;font-weight:700;color:var(--t1);line-height:1.3;margin-bottom:8px}
+.section .lead{font-size:.95rem;color:var(--t3);max-width:720px;line-height:1.75}
+
+/* ═══════════════════════════════════════════════════════════════
+   CARDS & PANELS
+═══════════════════════════════════════════════════════════════ */
+.card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;margin-bottom:20px;
+  transition:border-color .2s,box-shadow .2s;
+}
+.card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+
+.card-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.card-grid-2{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+
+.card-title{
+  font-size:.9rem;font-weight:700;color:var(--t1);
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+}
+.card-badge{
+  font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green3);border:1px solid rgba(16,185,129,.3)}
+.badge-blue {background:rgba(59,130,246,.15);color:var(--blue2); border:1px solid rgba(59,130,246,.3)}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid rgba(245,158,11,.3)}
+.badge-red  {background:rgba(239,68,68,.15); color:var(--red2);  border:1px solid rgba(239,68,68,.3)}
+.badge-purple{background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid rgba(139,92,246,.3)}
+.badge-cyan {background:rgba(6,182,212,.15); color:#67e8f9;      border:1px solid rgba(6,182,212,.3)}
+
+.card p{font-size:.83rem;color:var(--t3);line-height:1.65}
+
+/* ═══════════════════════════════════════════════════════════════
+   CODE BLOCKS
+═══════════════════════════════════════════════════════════════ */
+.code-block{
+  background:var(--code-bg);border:1px solid var(--border);
+  border-radius:var(--radius-sm);margin:16px 0;overflow:hidden;
+}
+.code-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+}
+.code-lang{font-size:.68rem;color:var(--t4);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.copy-btn{
+  font-size:.68rem;color:var(--t4);background:none;border:none;
+  cursor:pointer;padding:3px 8px;border-radius:4px;
+  transition:color .15s;
+}
+.copy-btn:hover{color:var(--t1)}
+pre{
+  padding:18px 20px;overflow-x:auto;
+  scrollbar-width:thin;scrollbar-color:var(--bg4) transparent;
+  font-family:'Cascadia Code','JetBrains Mono','Fira Code',monospace;
+  font-size:.8rem;line-height:1.65;
+}
+pre::-webkit-scrollbar{height:4px}
+pre::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+code.inline{
+  font-family:'Cascadia Code','JetBrains Mono',monospace;
+  font-size:.8em;background:rgba(255,255,255,.07);
+  padding:2px 6px;border-radius:4px;color:var(--green3);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FLOW / PIPELINE DIAGRAM
+═══════════════════════════════════════════════════════════════ */
+.pipeline{
+  display:flex;flex-direction:column;gap:0;
+  border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
+}
+.pipe-step{
+  display:flex;align-items:flex-start;gap:20px;
+  padding:20px 24px;background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  position:relative;transition:background .2s;cursor:default;
+}
+.pipe-step:last-child{border-bottom:none}
+.pipe-step:hover{background:var(--bg3)}
+.pipe-step::after{
+  content:'↓';position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+  font-size:1rem;color:var(--t4);z-index:2;line-height:1;
+  background:var(--bg2);padding:0 6px;
+}
+.pipe-step:last-child::after{display:none}
+.pipe-num{
+  width:36px;height:36px;min-width:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;margin-top:2px;
+}
+.pipe-body{}
+.pipe-title{font-size:.92rem;font-weight:700;color:var(--t1);margin-bottom:4px}
+.pipe-desc{font-size:.8rem;color:var(--t3);line-height:1.6}
+.pipe-file{font-size:.68rem;color:var(--t4);margin-top:6px;font-style:italic}
+
+/* ═══════════════════════════════════════════════════════════════
+   ARCH DIAGRAM (CSS-based)
+═══════════════════════════════════════════════════════════════ */
+.arch{
+  display:grid;
+  grid-template-columns:1fr 2px 1fr 2px 1fr;
+  grid-template-rows:auto 28px auto 28px auto;
+  gap:0;align-items:center;
+  padding:32px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow-x:auto;
+}
+.arch-col{display:flex;flex-direction:column;gap:10px;align-items:center}
+.arch-box{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--radius-sm);padding:10px 14px;
+  font-size:.75rem;font-weight:600;color:var(--t1);
+  text-align:center;width:100%;
+}
+.arch-box.green{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.07)}
+.arch-box.blue {border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.07)}
+.arch-box.amber{border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.07)}
+.arch-box.purple{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.07)}
+.arch-box.cyan {border-color:rgba(6,182,212,.4);  background:rgba(6,182,212,.07)}
+.arch-arrow{
+  background:var(--border2);width:100%;height:2px;position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.arch-arrow::after{
+  content:'→';color:var(--t3);font-size:1rem;
+  position:absolute;right:-6px;
+}
+.arch-vline{
+  background:var(--border2);width:2px;height:100%;
+  grid-row:1/-1;align-self:stretch;
+  margin:0 auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOGGLE CARDS (expandable)
+═══════════════════════════════════════════════════════════════ */
+.toggle-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);margin-bottom:12px;overflow:hidden;
+  transition:border-color .2s;
+}
+.toggle-card:hover{border-color:var(--border2)}
+.toggle-header{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 20px;cursor:pointer;
+  user-select:none;
+}
+.toggle-icon{
+  width:32px;height:32px;border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;flex-shrink:0;
+}
+.toggle-title{font-size:.88rem;font-weight:700;color:var(--t1);flex:1}
+.toggle-sub{font-size:.72rem;color:var(--t4)}
+.toggle-caret{color:var(--t4);transition:transform .2s;margin-left:auto;font-size:.8rem}
+.toggle-card.open .toggle-caret{transform:rotate(90deg)}
+.toggle-body{
+  display:none;padding:0 20px 20px;
+  border-top:1px solid var(--border);
+}
+.toggle-card.open .toggle-body{display:block}
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA FLOW TIMELINE
+═══════════════════════════════════════════════════════════════ */
+.timeline{position:relative;padding-left:40px}
+.timeline::before{
+  content:'';position:absolute;left:15px;top:8px;bottom:8px;
+  width:2px;background:linear-gradient(to bottom,var(--green),var(--blue),var(--purple));
+}
+.timeline-item{position:relative;margin-bottom:28px}
+.timeline-dot{
+  position:absolute;left:-32px;top:4px;
+  width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;color:#fff;border:2px solid var(--bg);
+  box-shadow:0 0 0 3px var(--bg2);
+}
+.timeline-title{font-size:.88rem;font-weight:700;color:var(--t1);margin-bottom:4px}
+.timeline-desc{font-size:.8rem;color:var(--t3);line-height:1.65}
+.timeline-badge{
+  display:inline-block;font-size:.62rem;font-weight:600;
+  padding:1px 8px;border-radius:20px;margin-top:6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════════════════════════ */
+.tbl-wrap{overflow-x:auto;margin:16px 0;border-radius:var(--radius-sm)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead tr{background:rgba(255,255,255,.04)}
+th{
+  padding:10px 14px;font-weight:700;color:var(--t1);
+  border-bottom:2px solid var(--border);text-align:left;white-space:nowrap;
+}
+td{
+  padding:9px 14px;border-bottom:1px solid var(--border);
+  color:var(--t3);vertical-align:top;
+}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ═══════════════════════════════════════════════════════════════
+   HIGHLIGHT BOXES
+═══════════════════════════════════════════════════════════════ */
+.info-box{
+  display:flex;gap:14px;padding:16px 18px;border-radius:var(--radius-sm);
+  margin:16px 0;
+}
+.info-box.green{background:rgba(16,185,129,.08);border-left:3px solid var(--green)}
+.info-box.blue {background:rgba(59,130,246,.08); border-left:3px solid var(--blue)}
+.info-box.amber{background:rgba(245,158,11,.08); border-left:3px solid var(--amber)}
+.info-box.red  {background:rgba(239,68,68,.08);  border-left:3px solid var(--red)}
+.info-box.purple{background:rgba(139,92,246,.08);border-left:3px solid var(--purple)}
+.info-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.info-content p{font-size:.82rem;color:var(--t2);line-height:1.65}
+.info-content strong{color:var(--t1)}
+
+/* ═══════════════════════════════════════════════════════════════
+   SYNTAX HIGHLIGHTING (manual)
+═══════════════════════════════════════════════════════════════ */
+.kw{color:#c792ea}
+.fn{color:#82aaff}
+.str{color:#c3e88d}
+.cm{color:#546e7a;font-style:italic}
+.num{color:#f78c6c}
+.cls{color:#ffcb6b}
+.dec{color:#89ddff}
+
+/* ═══════════════════════════════════════════════════════════════
+   MISC
+═══════════════════════════════════════════════════════════════ */
+.divider{height:1px;background:var(--border);margin:40px 0}
+ul.bullets{list-style:none;padding:0;display:flex;flex-direction:column;gap:7px}
+ul.bullets li{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:.82rem;color:var(--t3);line-height:1.6;
+}
+ul.bullets li::before{
+  content:'›';color:var(--green);font-size:1rem;
+  margin-top:-.1em;flex-shrink:0;
+}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:800px){.two-col{grid-template-columns:1fr}}
+
+.tag-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tag{
+  font-size:.68rem;font-weight:600;padding:3px 10px;border-radius:20px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border2);color:var(--t3);
+}
+
+/* Top progress bar */
+.progress-bar{
+  position:fixed;top:0;left:0;height:3px;
+  background:linear-gradient(90deg,var(--green),var(--cyan));
+  z-index:9999;transition:width .1s;
+  box-shadow:0 0 8px var(--green);
+}
+
+/* Scroll-top button */
+.scroll-top{
+  position:fixed;bottom:28px;right:28px;
+  width:42px;height:42px;border-radius:50%;
+  background:var(--green);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(16,185,129,.5);
+  opacity:0;transform:translateY(10px);
+  transition:opacity .2s,transform .2s;pointer-events:none;
+  z-index:100;
+}
+.scroll-top.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.scroll-top svg{color:#fff}
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Animated background -->
+<div class="bg-orbs" aria-hidden="true">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     LAYOUT
+══════════════════════════════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- ─ SIDEBAR ─ -->
+  <nav class="sidebar" id="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      </div>
+      <div>
+        <div class="logo-name">FinBot</div>
+        <div class="logo-sub">Project Explanation</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <a class="nav-item active" href="#overview" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        What is FinBot?
+      </a>
+      <a class="nav-item" href="#architecture" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+        Architecture
+      </a>
+      <a class="nav-item" href="#project-structure" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Project Structure
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Layers</div>
+      <a class="nav-item" href="#layer-frontend" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Layer 1 · Frontend
+        <span class="nav-num">3</span>
+      </a>
+      <a class="nav-item" href="#layer-flask" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Layer 2 · Flask App
+        <span class="nav-num">4</span>
+      </a>
+      <a class="nav-item" href="#layer-guardrails" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Layer 3 · Guardrails
+        <span class="nav-num">2</span>
+      </a>
+      <a class="nav-item" href="#layer-rag" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Layer 4 · RAG
+        <span class="nav-num">2</span>
+      </a>
+      <a class="nav-item" href="#layer-prompts" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Layer 5 · Prompts
+        <span class="nav-num">1</span>
+      </a>
+      <a class="nav-item" href="#layer-tools" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        Layer 6 · Tools
+        <span class="nav-num">5</span>
+      </a>
+      <a class="nav-item" href="#layer-chain" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Layer 7 · Chain/Brain
+        <span class="nav-num">1</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Deep Dives</div>
+      <a class="nav-item" href="#lifecycle" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Full Request Lifecycle
+      </a>
+      <a class="nav-item" href="#streaming" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        SSE Streaming
+      </a>
+      <a class="nav-item" href="#models" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        AI Models Used
+      </a>
+      <a class="nav-item" href="#tech-stack" onclick="setActive(this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Tech Stack
+      </a>
+    </div>
+  </nav>
+
+  <!-- ─ MAIN ─ -->
+  <main class="main">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         HERO
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="hero" id="overview">
+      <div class="hero-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.25-3.75 10.15-9 11.35C6.75 21.15 3 16.25 3 11V5l9-4z"/></svg>
+        Full Project Deep-Dive
+      </div>
+      <h1>FinBot — <span>AI Financial Advisor</span></h1>
+      <p>A production-grade, guarded chatbot that combines dual safety guardrails, retrieval-augmented generation, live market data tools, and real-time streaming — all built on NVIDIA's AI endpoints.</p>
+      <div class="tech-pills">
+        <span class="tech-pill">Python · Flask</span>
+        <span class="tech-pill">LangChain / LCEL</span>
+        <span class="tech-pill">NVIDIA AI Endpoints</span>
+        <span class="tech-pill">ChromaDB (Vector DB)</span>
+        <span class="tech-pill">RAG</span>
+        <span class="tech-pill">SSE Streaming</span>
+        <span class="tech-pill">yfinance · CoinGecko · Tavily</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         WHAT IS FINBOT
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-tag">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+          Introduction
+        </div>
+        <h2>What is FinBot?</h2>
+        <p class="lead">FinBot is a <strong>guarded, retrieval-augmented financial chatbot</strong>. Every single message a user sends is checked, enriched, routed, and streamed back in real-time through a multi-stage pipeline before a single word of the answer is generated.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">
+            <span style="color:var(--green)">🛡️</span> Dual Safety Guardrails
+            <span class="card-badge badge-green">Core</span>
+          </div>
+          <p>Every message is checked by <em>two</em> NVIDIA safety models concurrently before any AI response is generated. Harmful messages never reach the LLM.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span style="color:var(--blue)">📚</span> RAG Knowledge Base
+            <span class="card-badge badge-blue">Core</span>
+          </div>
+          <p>PDFs from BlackRock, Federal Reserve, and Vanguard are chunked, embedded, and stored in ChromaDB. Relevant passages are retrieved and injected into every prompt.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span style="color:var(--amber)">⚡</span> Live Tool Calls
+            <span class="card-badge badge-amber">Core</span>
+          </div>
+          <p>The bot can call 5 real-time tools — stock data, crypto prices, web search, and calculators — when the question demands live data.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span style="color:var(--purple)">🌊</span> Server-Sent Events
+            <span class="card-badge badge-purple">Core</span>
+          </div>
+          <p>Answers stream token-by-token to the browser via SSE, giving the user instant visual feedback. Reasoning tokens are shown live in a collapsible panel.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ARCHITECTURE
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="architecture">
+      <div class="section-header">
+        <div class="section-tag">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+          Architecture
+        </div>
+        <h2>System Architecture</h2>
+        <p class="lead">FinBot is organized into 7 clean layers. Each layer has exactly one responsibility. Data flows downward from the browser to the LLM and back up via SSE.</p>
+      </div>
+
+      <!-- Visual pipeline -->
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">1</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Browser (Frontend)</div>
+            <div class="pipe-desc">User types a message in the React-like chat UI. JavaScript sends a POST to <code class="inline">/chat</code> with the message and full conversation history as JSON. Opens a streaming reader to receive SSE chunks.</div>
+            <div class="pipe-file">templates/index.html · static/js/chat.js · static/css/style.css</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#10b981,#065f46)">2</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Flask Route Handler (app.py)</div>
+            <div class="pipe-desc">The <code class="inline">/chat</code> route extracts the message and history from JSON, validates they exist, then calls <code class="inline">chatbot.stream()</code>. The response is wrapped in Flask's <code class="inline">Response(stream_with_context(...))</code> with MIME type <code class="inline">text/event-stream</code>.</div>
+            <div class="pipe-file">app.py</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#ef4444,#991b1b)">3</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Dual Guardrail Check (guardrails.py)</div>
+            <div class="pipe-desc">The raw user message is simultaneously sent to <em>two</em> NVIDIA safety classifiers: <strong>Nemotron 3.5 Content Safety</strong> and <strong>Llama 3.1 Nemotron Guard 8B</strong>. If either blocks, a <code class="inline">GuardrailError</code> is raised — the LLM never sees the message. If "unauthorized advice" is detected, educational mode is enforced instead.</div>
+            <div class="pipe-file">chatbot/guardrails.py</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#8b5cf6,#4c1d95)">4</div>
+          <div class="pipe-body">
+            <div class="pipe-title">RAG Retrieval (rag.py)</div>
+            <div class="pipe-desc">The user's question is embedded using NVIDIA's <code class="inline">llama-nemotron-embed-1b-v2</code> model. The top-4 most similar document chunks are retrieved from ChromaDB using cosine similarity. Only chunks with a score ≥ 0.3 are included. Source metadata (folder, filename, page) is tracked for UI attribution.</div>
+            <div class="pipe-file">chatbot/rag.py</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#f59e0b,#92400e)">5</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Prompt Assembly (prompts.py)</div>
+            <div class="pipe-desc">A LangChain <code class="inline">ChatPromptTemplate</code> assembles the final message list: [System Prompt] + [2 Few-Shot Examples] + [Chat History] + [RAG Context] + [Guardrail Note (if any)] + [User Message]. This fully formed prompt goes to the LLM.</div>
+            <div class="pipe-file">chatbot/prompts.py</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#06b6d4,#0e7490)">6</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Tool Routing &amp; Execution (chain.py + tools.py)</div>
+            <div class="pipe-desc">A dedicated <em>router model</em> (fast, low reasoning budget) inspects the prompt with all 5 tools bound to it. It decides whether to call a tool. If yes, the tool runs (Tavily search, yfinance, CoinGecko, or a calculator). Results are appended as a system message. Then the main model generates the final answer.</div>
+            <div class="pipe-file">chatbot/chain.py · chatbot/tools.py</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:linear-gradient(135deg,#10b981,#3b82f6)">7</div>
+          <div class="pipe-body">
+            <div class="pipe-title">SSE Response Streaming (app.py → browser)</div>
+            <div class="pipe-desc">The answer is streamed token-by-token as <code class="inline">data: {...}\n\n</code> SSE events. Separate event types carry: status updates, tool call notifications, reasoning tokens (chain-of-thought), content tokens, and RAG source attribution. The browser renders each chunk incrementally using marked.js.</div>
+            <div class="pipe-file">app.py · static/js/chat.js</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         PROJECT STRUCTURE
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="project-structure">
+      <div class="section-header">
+        <div class="section-tag">Files</div>
+        <h2>Project Structure</h2>
+        <p class="lead">Every file has a single, well-defined responsibility. Here's what each one does.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">file tree</span></div>
+        <pre>
+<span style="color:var(--blue2)">Code/</span>
+├── <span style="color:var(--green3)">app.py</span>              <span style="color:var(--t4)">← Flask application: routes, SSE, market data API</span>
+├── <span style="color:var(--green3)">ingest.py</span>           <span style="color:var(--t4)">← One-time script: load PDFs → ChromaDB</span>
+├── <span style="color:var(--green3)">requirements.txt</span>    <span style="color:var(--t4)">← Python package dependencies</span>
+│
+├── <span style="color:var(--amber2)">chatbot/</span>            <span style="color:var(--t4)">← Core AI pipeline (Python package)</span>
+│   ├── <span style="color:var(--amber2)">__init__.py</span>     <span style="color:var(--t4)">← Makes chatbot/ a Python package</span>
+│   ├── <span style="color:var(--amber2)">chain.py</span>        <span style="color:var(--t4)">← FinancialChatbot class: the full 7-step pipeline</span>
+│   ├── <span style="color:var(--amber2)">guardrails.py</span>   <span style="color:var(--t4)">← Dual safety models + GuardrailError</span>
+│   ├── <span style="color:var(--amber2)">prompts.py</span>      <span style="color:var(--t4)">← System prompt, few-shot examples, NON_ADVISORY_NOTE</span>
+│   ├── <span style="color:var(--amber2)">rag.py</span>          <span style="color:var(--t4)">← ChromaDB singleton retriever</span>
+│   └── <span style="color:var(--amber2)">tools.py</span>        <span style="color:var(--t4)">← 5 LangChain @tool definitions</span>
+│
+├── <span style="color:var(--purple2)">knowledge_base/</span>     <span style="color:var(--t4)">← Source PDFs for RAG</span>
+│   ├── <span style="color:var(--purple2)">BlackRock/</span>      <span style="color:var(--t4)">← BII Mid-Year Outlook 2026</span>
+│   ├── <span style="color:var(--purple2)">Federal Reserve/</span> <span style="color:var(--t4)">← Beige Book — June 2026</span>
+│   └── <span style="color:var(--purple2)">Vanguard/</span>       <span style="color:var(--t4)">← 4 research papers (retirement, equity, inflation, asset location)</span>
+│
+├── <span style="color:var(--cyan)">chroma_db/</span>          <span style="color:var(--t4)">← Persistent ChromaDB vector store (generated by ingest.py)</span>
+│   └── <span style="color:var(--cyan)">chroma.sqlite3</span>
+│
+├── <span style="color:var(--blue2)">templates/</span>
+│   └── <span style="color:var(--blue2)">index.html</span>       <span style="color:var(--t4)">← Jinja2 template: full chat UI</span>
+│
+└── <span style="color:var(--blue2)">static/</span>
+    ├── <span style="color:var(--blue2)">css/style.css</span>    <span style="color:var(--t4)">← Complete UI styling (dark theme, animations)</span>
+    └── <span style="color:var(--blue2)">js/chat.js</span>       <span style="color:var(--t4)">← All frontend logic (SSE parsing, markdown render, market data)</span>
+</pre>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 1: FRONTEND
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-frontend">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25);color:var(--blue2)">Layer 1</div>
+        <h2>Frontend — index.html, style.css, chat.js</h2>
+        <p class="lead">The UI is a pure HTML/CSS/JS single-page application rendered by Flask's Jinja2 templating engine. No React or Vue — just hand-crafted, fast, modern JavaScript.</p>
+      </div>
+
+      <!-- Three sub-files -->
+      <div class="toggle-card open" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(59,130,246,.12)">📄</div>
+          <div>
+            <div class="toggle-title">templates/index.html — The Shell</div>
+            <div class="toggle-sub">Jinja2 template · rendered by Flask's render_template()</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <ul class="bullets">
+            <li>Flask injects two Jinja2 variables: <code class="inline">{{ init_error }}</code> (shows a red banner if the API key is missing) and <code class="inline">{{ model_label }}</code> (displays the active NVIDIA model name like "Nemotron Ultra 550B").</li>
+            <li>Contains the <strong>animated background canvas</strong>: three blurred "orb" divs + a CSS grid overlay — pure CSS, zero JS.</li>
+            <li><strong>Sidebar</strong>: Logo, "New Conversation" button, Quick Topic chips (pre-canned questions), Knowledge Base indicators (BlackRock/Fed/Vanguard dots), live Market Pulse rows, and a footer.</li>
+            <li><strong>Chat area</strong>: Welcome screen with 4 suggestion cards, message list container, and an auto-expanding textarea with a character counter (max 2000).</li>
+            <li><strong>Ticker tape</strong>: A fixed bottom bar populated with live market data by JavaScript.</li>
+            <li>Loads <code class="inline">marked.js</code> (Markdown → HTML), <code class="inline">highlight.js</code> (code syntax highlighting), Google Fonts (Inter + JetBrains Mono), and the project's own CSS/JS.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(139,92,246,.12)">🎨</div>
+          <div>
+            <div class="toggle-title">static/css/style.css — Visual Design System</div>
+            <div class="toggle-sub">Full dark theme · CSS custom properties · animations</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <ul class="bullets">
+            <li>Uses CSS custom properties (variables) for a consistent design token system: <code class="inline">--green, --blue, --bg, --t1</code> etc.</li>
+            <li>Animated background: three radial gradient orbs with <code class="inline">@keyframes</code> drift animations and <code class="inline">blur(120px)</code>.</li>
+            <li>Sidebar is <code class="inline">position:sticky</code> so it stays on screen while the chat scrolls.</li>
+            <li>The ticker tape at the bottom uses a CSS <code class="inline">@keyframes ticker</code> animation with infinite left-scroll. JavaScript duplicates the items so the loop is seamless.</li>
+            <li>Bot message bubbles have a distinctive styling with a glassmorphism effect, monospace code blocks with syntax highlighting, and a blinking cursor shown during streaming.</li>
+            <li>The "Chain-of-Thought" reasoning panel is a collapsible <code class="inline">div</code> — visible during deep-thinking model inference.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(16,185,129,.12)">⚙️</div>
+          <div>
+            <div class="toggle-title">static/js/chat.js — All Frontend Logic</div>
+            <div class="toggle-sub">SSE client · Markdown render · Market data poller</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <div class="info-box blue">
+            <span class="info-icon">ℹ️</span>
+            <div class="info-content"><p><strong>Key design:</strong> chat.js handles <em>all</em> interactivity. It maintains a <code class="inline">chatHistory</code> array in memory and sends it with every request so the server is stateless.</p></div>
+          </div>
+          <ul class="bullets" style="margin-top:12px">
+            <li><strong>sendMessage()</strong>: the main function. Appends the user bubble, disables input, fires <code class="inline">POST /chat</code>, then opens an async SSE reader on the response body.</li>
+            <li><strong>SSE event parser</strong>: reads the stream line-by-line. Different JSON payloads trigger different UI actions — <code class="inline">status</code> updates the header pill, <code class="inline">tool_call</code> shows a spinning badge, <code class="inline">reasoning</code> fills the think panel, <code class="inline">content</code> streams the answer, <code class="inline">sources</code> shows RAG attribution.</li>
+            <li><strong>updateContent()</strong>: uses <code class="inline">requestAnimationFrame</code> batching to parse the accumulated Markdown on every frame instead of every chunk — prevents layout thrashing during rapid streaming.</li>
+            <li><strong>finalise()</strong>: once streaming ends, runs <code class="inline">hljs.highlightElement()</code> on all code blocks, adds a "Copy" button to each, appends RAG source tags, and adds a "Copy response" action button.</li>
+            <li><strong>loadMarketData()</strong>: called once on load and every 5 minutes. Fetches <code class="inline">/api/market</code> and updates the sidebar Market Pulse rows and the bottom ticker tape with live prices and directional arrows.</li>
+            <li><strong>escHtml()</strong>: escapes user input to prevent XSS before inserting into the DOM.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 2: FLASK
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-flask">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25);color:var(--green3)">Layer 2</div>
+        <h2>Flask App — app.py</h2>
+        <p class="lead">app.py is the web server. It exposes 4 routes, handles startup errors gracefully, and wraps the chatbot pipeline in a streaming HTTP response.</p>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Route</th><th>Method</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code class="inline">GET /</code></td>
+              <td><span class="tag">GET</span></td>
+              <td>Renders <code class="inline">index.html</code> via Jinja2. Injects <code class="inline">init_error</code> (any startup error) and <code class="inline">model_label</code> (active AI model name) into the template.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">GET /health</code></td>
+              <td><span class="tag">GET</span></td>
+              <td>Returns <code class="inline">{"status": "ok"}</code> or <code class="inline">{"status": "error", "error": "..."}</code>. Used for health checks / monitoring.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">GET /api/market</code></td>
+              <td><span class="tag">GET</span></td>
+              <td>Fetches live stock data (yfinance) and crypto data (CoinGecko API). Returns two arrays: <code class="inline">pulse</code> (5 major indices) and <code class="inline">tape</code> (12 symbols for the scrolling ticker). Called by the browser every 5 minutes.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">POST /chat</code></td>
+              <td><span class="tag">POST</span></td>
+              <td>The main chat endpoint. Reads <code class="inline">message</code> and <code class="inline">history</code> from the JSON body. Calls <code class="inline">chatbot.stream()</code> and wraps the generator in Flask's SSE response. On <code class="inline">GuardrailError</code>, yields a blocked event. On any other exception, yields an error event.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box amber">
+        <span class="info-icon">⚠️</span>
+        <div class="info-content"><p><strong>Graceful startup:</strong> If <code class="inline">FinancialChatbot()</code> fails (e.g., missing API key), the app still starts. <code class="inline">chatbot</code> is set to <code class="inline">None</code> and <code class="inline">_init_error</code> stores the message. The <code class="inline">/chat</code> route returns HTTP 503 if the chatbot is not initialized. The <code class="inline">/</code> route shows a red banner in the UI.</p></div>
+      </div>
+
+      <div class="code-block" style="margin-top:20px">
+        <div class="code-header"><span class="code-lang">python · app.py — SSE generator</span></div>
+        <pre>
+<span class="kw">def</span> <span class="fn">generate</span>():
+    <span class="kw">try</span>:
+        <span class="kw">for</span> chunk <span class="kw">in</span> chatbot.<span class="fn">stream</span>(user_message, chat_history):
+            <span class="cm"># Each chunk is a dict like {"content":"..."} or {"status":"..."}</span>
+            <span class="kw">yield</span> <span class="fn">f</span><span class="str">"data: {json.dumps(chunk)}\n\n"</span>
+    <span class="kw">except</span> <span class="cls">GuardrailError</span> <span class="kw">as</span> exc:
+        <span class="cm"># Blocked message — send blocked event, then stop</span>
+        <span class="kw">yield</span> <span class="fn">f</span><span class="str">"data: {json.dumps({'error': exc.message, 'blocked': True})}\n\n"</span>
+    <span class="kw">except</span> <span class="cls">Exception</span> <span class="kw">as</span> exc:
+        <span class="kw">yield</span> <span class="fn">f</span><span class="str">"data: {json.dumps({'error': str(exc)})}\n\n"</span>
+    <span class="kw">yield</span> <span class="str">"data: [DONE]\n\n"</span>   <span class="cm"># Signal end of stream</span>
+
+<span class="kw">return</span> <span class="cls">Response</span>(
+    <span class="fn">stream_with_context</span>(<span class="fn">generate</span>()),
+    mimetype=<span class="str">"text/event-stream"</span>,
+    headers={<span class="str">"Cache-Control"</span>: <span class="str">"no-cache"</span>, <span class="str">"X-Accel-Buffering"</span>: <span class="str">"no"</span>},
+)
+</pre>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 3: GUARDRAILS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-guardrails">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.25);color:var(--red2)">Layer 3</div>
+        <h2>Guardrails — guardrails.py</h2>
+        <p class="lead">The first gate every user message passes through. Two safety models run <em>in parallel</em> before any financial reasoning begins. This is the project's most critical safety system.</p>
+      </div>
+
+      <div class="two-col">
+        <div class="card" style="border-color:rgba(239,68,68,.3)">
+          <div class="card-title">Guard 1: Nemotron 3.5 Content Safety <span class="card-badge badge-red">Multimodal</span></div>
+          <p><strong>Model:</strong> <code class="inline">nvidia/nemotron-3.5-content-safety</code></p>
+          <p style="margin-top:8px">Sends the message with a special <code class="inline">chat_template_kwargs</code> requesting category classification with "thinking" enabled. The response is a plain text string like:</p>
+          <div class="code-block" style="margin-top:10px">
+            <pre style="font-size:.72rem">
+<span class="str">user safety: safe</span>
+<span class="cm">— or —</span>
+<span class="str">user safety: unsafe</span>
+<span class="str">safety categories: violence, hate speech</span>
+</pre>
+          </div>
+          <p style="margin-top:8px">The code parses lines to extract the safety verdict and categories. The category <code class="inline">unauthorized advice</code> is in the allowed list — it does not block but triggers educational mode.</p>
+        </div>
+        <div class="card" style="border-color:rgba(239,68,68,.3)">
+          <div class="card-title">Guard 2: Llama 3.1 Nemotron Guard 8B <span class="card-badge badge-red">23-Category</span></div>
+          <p><strong>Model:</strong> <code class="inline">nvidia/llama-3.1-nemotron-safety-guard-8b-v3</code></p>
+          <p style="margin-top:8px">Returns a JSON object with normalized safety labels:</p>
+          <div class="code-block" style="margin-top:10px">
+            <pre style="font-size:.72rem">
+{
+  <span class="str">"User Safety"</span>: <span class="str">"unsafe"</span>,
+  <span class="str">"Safety Categories"</span>: <span class="str">"Violence"</span>
+}
+</pre>
+          </div>
+          <p style="margin-top:8px">Keys are normalized to lowercase before checking. Has fallback parsing if the response is not valid JSON (searches raw text for "unsafe"). Covers 23 harm categories including violence, self-harm, sexual content, and more.</p>
+        </div>
+      </div>
+
+      <div class="info-box green" style="margin-top:16px">
+        <span class="info-icon">🔀</span>
+        <div class="info-content"><p><strong>Parallel execution via LCEL:</strong> Both guards run simultaneously using LangChain's <code class="inline">RunnableParallel</code>. This means the total guardrail latency equals the <em>slower</em> of the two models, not the sum. This is a key performance optimization.</p></div>
+      </div>
+
+      <div class="code-block" style="margin-top:16px">
+        <div class="code-header"><span class="code-lang">python · guardrails.py — parallel chain</span></div>
+        <pre>
+<span class="cm"># Both guards run on the SAME input string at the same time</span>
+guardrail_chain = <span class="cls">RunnableParallel</span>(
+    nemotron_safety=<span class="cls">RunnableLambda</span>(_nemotron_safety_call),   <span class="cm"># Guard 1</span>
+    nemotron_guard=<span class="cls">RunnableLambda</span>(_nemotron_guard_call),    <span class="cm"># Guard 2</span>
+)
+<span class="cm"># Result: {"nemotron_safety": {...}, "nemotron_guard": {...}}</span>
+</pre>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-top:24px;margin-bottom:12px">Decision Logic in chain.py</h3>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">1</div>
+          <div class="timeline-title">Both guards say safe</div>
+          <div class="timeline-desc">Pipeline continues normally. <code class="inline">guardrail_note</code> is an empty string.</div>
+          <span class="timeline-badge badge-green">Continue</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--amber)">2</div>
+          <div class="timeline-title">Either guard flags "unauthorized advice"</div>
+          <div class="timeline-desc">The message is <em>not</em> blocked. Instead, <code class="inline">NON_ADVISORY_NOTE</code> from prompts.py is injected into the prompt. The LLM is forced into educational-only mode: no specific tickers, no "you should buy X", no personalized plans.</div>
+          <span class="timeline-badge badge-amber">Educational Mode</span>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--red)">3</div>
+          <div class="timeline-title">Either guard flags truly harmful content</div>
+          <div class="timeline-desc">A <code class="inline">GuardrailError</code> exception is raised immediately. The exception propagates up to app.py's generate() function which sends a <code class="inline">{"blocked": true}</code> SSE event. The browser shows a "Blocked by Safety Guardrails" panel. The LLM is never called.</div>
+          <span class="timeline-badge badge-red">Hard Block</span>
+        </div>
+      </div>
+
+      <div class="info-box amber" style="margin-top:16px">
+        <span class="info-icon">🔓</span>
+        <div class="info-content"><p><strong>"Fail open" safety:</strong> If a guard <em>fails</em> due to an API error (network timeout, wrong key, etc.), it returns <code class="inline">{"safe": True}</code> — it fails open. This is a deliberate design choice to prevent API errors from blocking legitimate users. The error is logged to the console but the pipeline continues.</p></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 4: RAG
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-rag">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.25);color:var(--purple2)">Layer 4</div>
+        <h2>Retrieval-Augmented Generation — rag.py + ingest.py</h2>
+        <p class="lead">RAG gives the chatbot authoritative, factual knowledge from real financial documents, instead of relying solely on the LLM's training data which may be outdated or hallucinated.</p>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-bottom:16px">Part A — ingest.py (run once, offline)</h3>
+
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:var(--purple)">1</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Load PDFs</div>
+            <div class="pipe-desc">Walks <code class="inline">knowledge_base/**/*.pdf</code> recursively. Uses <code class="inline">pypdf.PdfReader</code> to extract text page-by-page. Tags each page with metadata: <code class="inline">source_file</code>, <code class="inline">source_folder</code>, and <code class="inline">page</code> number.</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:var(--purple)">2</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Split into Chunks</div>
+            <div class="pipe-desc"><code class="inline">RecursiveCharacterTextSplitter</code> splits each page into overlapping chunks of <strong>1000 characters</strong> with a <strong>200 character overlap</strong>. The overlap ensures that context at chunk boundaries isn't lost when retrieving.</div>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num" style="background:var(--purple)">3</div>
+          <div class="pipe-body">
+            <div class="pipe-title">Embed &amp; Store</div>
+            <div class="pipe-desc">Each chunk is converted to a vector embedding using NVIDIA's <code class="inline">llama-nemotron-embed-1b-v2</code> model via the NVIDIA AI Endpoints API. Vectors are stored in ChromaDB under the collection <code class="inline">finbot_knowledge</code> using <strong>cosine similarity</strong> as the distance metric. ChromaDB persists to <code class="inline">chroma_db/</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-top:28px;margin-bottom:16px">Part B — rag.py (called every request)</h3>
+
+      <div class="toggle-card open" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(139,92,246,.12)">🗄️</div>
+          <div>
+            <div class="toggle-title">Singleton DB Pattern</div>
+            <div class="toggle-sub">The ChromaDB connection is created once and reused for all requests</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65">The <code class="inline">_db</code> global variable starts as <code class="inline">None</code>. On the first call to <code class="inline">_get_db()</code>, it loads the ChromaDB from disk, creates the embedding model, and stores the connection. All subsequent calls return the cached connection. This prevents expensive re-initialization on every message.</p>
+          <div class="code-block" style="margin-top:12px">
+            <div class="code-header"><span class="code-lang">python · rag.py — singleton pattern</span></div>
+            <pre>
+_db = <span class="kw">None</span>   <span class="cm"># module-level singleton</span>
+
+<span class="kw">def</span> <span class="fn">_get_db</span>() -> <span class="cls">Chroma</span>:
+    <span class="kw">global</span> _db
+    <span class="kw">if</span> _db <span class="kw">is not None</span>:
+        <span class="kw">return</span> _db     <span class="cm"># already initialized — return cached</span>
+    <span class="cm"># First call: build the DB + embedding model</span>
+    embeddings = <span class="cls">NVIDIAEmbeddings</span>(model=<span class="str">"nvidia/llama-nemotron-embed-1b-v2"</span>, ...)
+    _db = <span class="cls">Chroma</span>(persist_directory=CHROMA_PATH, ...)
+    <span class="kw">return</span> _db
+</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(139,92,246,.12)">🔍</div>
+          <div>
+            <div class="toggle-title">retrieve() Function — Query → Context + Sources</div>
+            <div class="toggle-sub">Top-4 cosine similarity search with score threshold filtering</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <ul class="bullets">
+            <li>Embeds the user's query using the same <code class="inline">llama-nemotron-embed-1b-v2</code> model used during ingestion. Using the same model for both steps is critical for accurate similarity scores.</li>
+            <li>Calls <code class="inline">similarity_search_with_relevance_scores(query, k=4)</code> — returns the 4 closest chunks with cosine similarity scores in [0, 1].</li>
+            <li>Applies a <strong>score threshold of 0.3</strong>: chunks scoring below 0.3 are considered irrelevant and discarded. This prevents injecting noise into the prompt when the knowledge base has nothing relevant.</li>
+            <li>For each passing chunk, formats it as: <code class="inline">[Source N: folder/filename]\n{text}</code>.</li>
+            <li>Deduplicates sources by <code class="inline">folder/file</code> key — the same file won't appear twice in the source attribution panel even if two chunks from it are retrieved.</li>
+            <li>Returns a tuple: <code class="inline">(context_string, sources_list)</code>. The context string goes into the prompt. The sources list goes to the frontend for RAG attribution badges.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="info-box purple" style="margin-top:8px">
+        <span class="info-icon">📌</span>
+        <div class="info-content"><p><strong>Knowledge Base Contents:</strong> BlackRock's BII Mid-Year Outlook 2026 · Federal Reserve Beige Book June 2026 · Vanguard Retirement Income · Vanguard Global Equity · Vanguard Inflation Hedging · Vanguard Asset Location. Total: 6 documents across 3 organizations.</p></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 5: PROMPTS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-prompts">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:var(--amber2)">Layer 5</div>
+        <h2>Prompts — prompts.py</h2>
+        <p class="lead">prompts.py is the "instruction manual" given to the LLM. It defines the bot's identity, capabilities, decision rules, output format, and the safety override used by the guardrail system.</p>
+      </div>
+
+      <div class="toggle-card open" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(245,158,11,.12)">📜</div>
+          <div>
+            <div class="toggle-title">SYSTEM_PROMPT — FinBot's Identity &amp; Rules</div>
+            <div class="toggle-sub">Always the first message in the context window</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <ul class="bullets">
+            <li><strong>Identity:</strong> "You are FinBot, an AI financial advisor. Provide clear, accurate, structured answers with specific numbers and actionable takeaways."</li>
+            <li><strong>Tool table:</strong> A Markdown table mapping each tool to the trigger condition — the LLM uses this to decide when to call which tool.</li>
+            <li><strong>Tool call rules:</strong> Explicit "when to call" instructions: stock price → <code class="inline">get_stock_data</code>, news → <code class="inline">search_financial_web</code>, crypto → <code class="inline">get_crypto_price</code>.</li>
+            <li><strong>Disclaimer:</strong> Ends every investment recommendation with: "⚠️ Educational only — not personalized financial advice."</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(245,158,11,.12)">💡</div>
+          <div>
+            <div class="toggle-title">Few-Shot Examples — Teaching by Demonstration</div>
+            <div class="toggle-sub">2 high-quality example Q&A pairs shown before every chat</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-bottom:12px">Two complete example conversations are injected before the actual chat history. This teaches the model <em>by example</em> what a great FinBot answer looks like — structured tables, specific numbers, action plans, and the disclaimer. The examples cover:</p>
+          <div class="card-grid">
+            <div class="card">
+              <div class="card-title" style="font-size:.8rem">Example 1</div>
+              <p>"How do I build a diversified portfolio with $10,000?" — Full table with allocations, ETF names, 20-year projection, step-by-step action plan.</p>
+            </div>
+            <div class="card">
+              <div class="card-title" style="font-size:.8rem">Example 2</div>
+              <p>"Roth IRA vs Traditional IRA?" — Feature comparison table, decision framework, the math on a 30-year horizon, next steps.</p>
+            </div>
+          </div>
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-top:12px">These are implemented using <code class="inline">FewShotChatMessagePromptTemplate</code> — a LangChain helper that serializes them as proper <code class="inline">HumanMessage</code> / <code class="inline">AIMessage</code> pairs in the context window.</p>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(239,68,68,.12)">🔒</div>
+          <div>
+            <div class="toggle-title">NON_ADVISORY_NOTE — Guardrail Override Prompt</div>
+            <div class="toggle-sub">Injected when the guardrail detects "unauthorized advice"</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">python · prompts.py</span></div>
+            <pre>
+NON_ADVISORY_NOTE = (
+    <span class="str">"⚠️ GUARDRAIL ACTIVE — EDUCATIONAL MODE ENFORCED: "</span>
+    <span class="str">"The user's message was flagged as a request for personalized financial advice. "</span>
+    <span class="str">"You MUST respond with financial insights and education ONLY. "</span>
+    <span class="str">"Do NOT provide: specific ticker symbols to buy, exact dollar amounts to allocate, "</span>
+    <span class="str">"personalized step-by-step investment plans, or direct 'you should do X' statements. "</span>
+    <span class="str">"Instead: explain the relevant financial principles, discuss options objectively, "</span>
+    <span class="str">"highlight key considerations and trade-offs, and cite knowledge-base sources. "</span>
+    <span class="str">"End your response with the standard non-advisory disclaimer."</span>
+)
+</pre>
+          </div>
+          <p style="font-size:.82rem;color:var(--t3);margin-top:8px">This is injected as a <code class="inline">SystemMessage</code> at the end of the prompt chain, giving it highest-priority instruction weight. It's what allows FinBot to still be <em>helpful</em> on investment questions without crossing into unregulated financial advice territory.</p>
+        </div>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-top:24px;margin-bottom:12px">Final Prompt Structure</h3>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">message list sent to LLM</span></div>
+        <pre>
+[<span class="cls">SystemMessage</span>]   SYSTEM_PROMPT  (identity, tool table, disclaimer)
+[<span class="cls">HumanMessage</span>]   "How do I build a diversified portfolio?"   ← example 1
+[<span class="cls">AIMessage</span>]      "## Building a Diversified $10,000 Portfolio…" ← example 1 answer
+[<span class="cls">HumanMessage</span>]   "Roth IRA vs Traditional IRA?"               ← example 2
+[<span class="cls">AIMessage</span>]      "## Roth IRA vs. Traditional IRA…"            ← example 2 answer
+[<span class="cls">HumanMessage</span>]   (previous user message from history)
+[<span class="cls">AIMessage</span>]      (previous bot response from history)
+  ... (all history pairs) ...
+[<span class="cls">SystemMessage</span>]   "Relevant excerpts from the knowledge base:\n{context}"
+[<span class="cls">SystemMessage</span>]   NON_ADVISORY_NOTE  ← only if advice was flagged; else ""
+[<span class="cls">HumanMessage</span>]   {user's current message}
+[<span class="cls">SystemMessage</span>]   Routing hint  ← injected by chain.py, controls tool use
+</pre>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 6: TOOLS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-tools">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.25);color:#67e8f9">Layer 6</div>
+        <h2>Tools — tools.py</h2>
+        <p class="lead">Five LangChain <code class="inline">@tool</code>-decorated functions that the LLM can call when it needs real-time data or calculations. Each tool has a name, a docstring (used by the LLM to decide when to call it), and typed parameters.</p>
+      </div>
+
+      <div class="card-grid-2">
+        <div class="card">
+          <div class="card-title">
+            🔍 search_financial_web
+            <span class="card-badge badge-cyan">Tavily API</span>
+          </div>
+          <p><strong>Trigger:</strong> Recent news, earnings, analyst upgrades, market events — any question needing up-to-date web data.</p>
+          <p style="margin-top:8px"><strong>How it works:</strong> Calls <code class="inline">TavilyClient.search()</code> with <code class="inline">search_depth="advanced"</code>, <code class="inline">topic="finance"</code>, up to 5 results with 3 content chunks each. Returns formatted Markdown with title, URL, score, and content snippet per result.</p>
+          <div class="tag-row">
+            <span class="tag">TAVILY_API_KEY</span>
+            <span class="tag">finance topic filter</span>
+            <span class="tag">5 results max</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            📈 get_stock_data
+            <span class="card-badge badge-green">yfinance</span>
+          </div>
+          <p><strong>Trigger:</strong> Current price, P/E, market cap for any ticker symbol (AAPL, TSLA, SPY, BRK-B…).</p>
+          <p style="margin-top:8px"><strong>How it works:</strong> Calls <code class="inline">yf.Ticker(ticker).info</code> to retrieve a comprehensive dict of fundamentals. Extracts and formats: current price, market cap, P/E (TTM), EPS, 52-week range, dividend yield, revenue, analyst target, recommendation key.</p>
+          <div class="tag-row">
+            <span class="tag">No API key needed</span>
+            <span class="tag">Real-time</span>
+            <span class="tag">9 data fields</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            🪙 get_crypto_price
+            <span class="card-badge badge-amber">CoinGecko</span>
+          </div>
+          <p><strong>Trigger:</strong> Live cryptocurrency prices — accepts CoinGecko IDs (bitcoin, ethereum, solana…).</p>
+          <p style="margin-top:8px"><strong>How it works:</strong> Hits the free CoinGecko <code class="inline">/simple/price</code> endpoint with USD as the base currency, requesting price, market cap, 24h change, and volume. No API key required. Uses directional arrow (▲/▼) for the change.</p>
+          <div class="tag-row">
+            <span class="tag">No API key needed</span>
+            <span class="tag">CoinGecko IDs</span>
+            <span class="tag">4 data fields</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            📊 calculate_compound_growth
+            <span class="card-badge badge-purple">Pure Python</span>
+          </div>
+          <p><strong>Trigger:</strong> Investment projections, retirement savings, emergency fund goals — "how much will X grow to in Y years at Z% return?"</p>
+          <p style="margin-top:8px"><strong>How it works:</strong> Implements the standard compound interest formula with optional monthly contributions:<br><code class="inline">FV = P(1+r)ⁿ + C × ((1+r)ⁿ - 1) / r</code><br>where r = monthly rate, n = months. Returns total invested, total growth, and final value.</p>
+          <div class="tag-row">
+            <span class="tag">4 parameters</span>
+            <span class="tag">monthly compounding</span>
+            <span class="tag">no API</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            🏦 calculate_loan_payment
+            <span class="card-badge badge-purple">Pure Python</span>
+          </div>
+          <p><strong>Trigger:</strong> Mortgage affordability, car loans, student debt — "what will my monthly payment be?"</p>
+          <p style="margin-top:8px"><strong>How it works:</strong> Standard amortization formula:<br><code class="inline">M = P × r(1+r)ⁿ / ((1+r)ⁿ - 1)</code><br>Returns monthly payment, total paid over the life of the loan, and total interest cost. Handles the zero-rate edge case (interest-free loans).</p>
+          <div class="tag-row">
+            <span class="tag">3 parameters</span>
+            <span class="tag">full amortization</span>
+            <span class="tag">no API</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box blue" style="margin-top:16px">
+        <span class="info-icon">🔗</span>
+        <div class="info-content"><p><strong>How tools are bound to the LLM:</strong> <code class="inline">FINBOT_TOOLS = [tool1, tool2, ...]</code> is a list of decorated functions. In <code class="inline">chain.py</code>, the router model is created with <code class="inline">router_model.bind_tools(FINBOT_TOOLS)</code>. LangChain serializes each tool's name and docstring into the LLM's function-calling schema. When the LLM wants to call a tool, it emits a special <code class="inline">tool_calls</code> attribute on the response, which chain.py detects and dispatches.</p></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LAYER 7: CHAIN
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="layer-chain">
+      <div class="section-header">
+        <div class="section-tag" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25);color:var(--green3)">Layer 7</div>
+        <h2>Chain / Brain — chain.py</h2>
+        <p class="lead"><code class="inline">FinancialChatbot</code> is the orchestrator class. Its <code class="inline">stream()</code> method is a Python generator that coordinates all other layers and <code class="inline">yield</code>s live status events, tool events, reasoning tokens, and content tokens.</p>
+      </div>
+
+      <div class="toggle-card open" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(16,185,129,.12)">🏗️</div>
+          <div>
+            <div class="toggle-title">__init__() — Model Configuration &amp; Setup</div>
+            <div class="toggle-sub">Controlled by the FINBOT_MODEL environment variable</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>FINBOT_MODEL</th><th>Model</th><th>Thinking</th><th>Speed</th><th>Reasoning Budgets</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code class="inline">llama</code></td>
+                  <td>meta/llama-3.3-70b-instruct</td>
+                  <td>❌ No</td>
+                  <td>Fastest</td>
+                  <td>N/A (single instance)</td>
+                </tr>
+                <tr>
+                  <td><code class="inline">super</code></td>
+                  <td>nvidia/nemotron-3-super-120b-a12b</td>
+                  <td>❌ No</td>
+                  <td>Fast</td>
+                  <td>N/A (single instance)</td>
+                </tr>
+                <tr>
+                  <td><code class="inline">ultra</code></td>
+                  <td>nvidia/nemotron-3-ultra-550b-a55b</td>
+                  <td>✅ Yes</td>
+                  <td>Slowest</td>
+                  <td>fast=1024, balanced=4096, deep=16384, router=512</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-top:12px">For thinking models (Ultra), <strong>four separate model instances</strong> are created with different <code class="inline">reasoning_budget</code> values. The answer model always uses "balanced" (4096 tokens). The router gets a tiny budget (512) to stay fast. Non-thinking models (Llama/Super) reuse a single instance for all levels.</p>
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-top:8px">All models are also <code class="inline">.bind_tools(FINBOT_TOOLS)</code>-ed to create tool-aware variants stored in <code class="inline">self._agent_models</code> and <code class="inline">self._router_agent</code>.</p>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(16,185,129,.12)">🔀</div>
+          <div>
+            <div class="toggle-title">Tool Routing System — The "Router Model" Pattern</div>
+            <div class="toggle-sub">A small, fast dedicated model decides if tools are needed</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-bottom:12px">Instead of making the expensive answer model (Nemotron Ultra 550B) decide tool routing, a <em>dedicated router model</em> with minimal reasoning budget (512 tokens) first reads the entire prompt with tools bound to it and decides whether to call any tool. If yes, the tools run. Then the actual answer model generates the final response with tool results injected.</p>
+          <div class="info-box amber">
+            <span class="info-icon">⚡</span>
+            <div class="info-content"><p><strong>Why this matters:</strong> The router model can make its routing decision in seconds. The 550B answer model focuses only on generating a high-quality response — it doesn't waste reasoning budget on whether to call a tool.</p></div>
+          </div>
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-top:12px"><strong>Routing hint:</strong> A <code class="inline">SystemMessage</code> is appended before routing that explicitly constrains when to call tools. Critically, if RAG context was already found, the hint says "The knowledge base already has relevant information — do NOT call <code class="inline">search_financial_web</code>." This prevents redundant web searches.</p>
+        </div>
+      </div>
+
+      <div class="toggle-card" onclick="toggleCard(this)">
+        <div class="toggle-header">
+          <div class="toggle-icon" style="background:rgba(16,185,129,.12)">🧹</div>
+          <div>
+            <div class="toggle-title">Citation Cleaning — _clean()</div>
+            <div class="toggle-sub">Strips Nemotron citation markers before streaming to the UI</div>
+          </div>
+          <span class="toggle-caret">›</span>
+        </div>
+        <div class="toggle-body">
+          <p style="font-size:.82rem;color:var(--t3);line-height:1.65;margin-bottom:12px">Nemotron models inject citation markers like <code class="inline">【{"id":0,"cursor":0,"loc":0}】</code> when referencing tool or knowledge base content. These are JSON-encoded Unicode bracket characters (U+3010 and U+3011). The <code class="inline">_CITATION_RE</code> regex strips these before each content chunk is yielded to the SSE stream.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">python · chain.py</span></div>
+            <pre>
+_CITATION_RE = re.<span class="fn">compile</span>(<span class="str">r'\u3010[^\u3011]*\u3011'</span>)
+
+<span class="kw">def</span> <span class="fn">_clean</span>(text: <span class="cls">str</span>) -> <span class="cls">str</span>:
+    <span class="kw">return</span> _CITATION_RE.<span class="fn">sub</span>(<span class="str">''</span>, text)  <span class="cm"># remove 【...】 markers</span>
+</pre>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-top:24px;margin-bottom:16px">The stream() Generator — Step by Step</h3>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--red)">①</div>
+          <div class="timeline-title">yield {"status": "🛡️ Checking safety…"}</div>
+          <div class="timeline-desc">Immediately yields a status event so the UI shows "Checking safety…" while the guard models run. Then calls <code class="inline">_check_guardrails()</code> which invokes the parallel guardrail chain. Raises <code class="inline">GuardrailError</code> if blocked.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--purple)">②</div>
+          <div class="timeline-title">yield {"status": "📚 Searching knowledge base…"}</div>
+          <div class="timeline-desc">Converts raw history dicts to LangChain message objects via <code class="inline">_format_history()</code>. Then calls <code class="inline">_add_rag_context()</code> to retrieve relevant document chunks from ChromaDB. Yields <code class="inline">{"sources": [...]}</code> immediately so the UI knows which sources were used even before the answer starts.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--amber)">③</div>
+          <div class="timeline-title">Prompt Assembly</div>
+          <div class="timeline-desc">Calls <code class="inline">PROMPT_TEMPLATE.invoke({...})</code> to build the full message list: system prompt + few-shot examples + history + RAG context + optional NON_ADVISORY_NOTE + user message. Then appends the routing hint SystemMessage.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--cyan)">④</div>
+          <div class="timeline-title">yield {"status": "Routing…"} → Router Model Run</div>
+          <div class="timeline-desc">Streams the router model to get the full <code class="inline">ai_msg</code>. Extracts <code class="inline">ai_msg.tool_calls</code>. If the list is non-empty, tools were requested. Logs the tool names and time taken.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--blue)">⑤</div>
+          <div class="timeline-title">Tool Execution (if requested)</div>
+          <div class="timeline-desc">For each tool call: yields <code class="inline">{"tool_call": name}</code> (shows spinner badge in UI), looks up the function in <code class="inline">self._tool_map</code>, calls <code class="inline">tool_fn.invoke(args)</code>, appends the result as a <code class="inline">SystemMessage</code> to the message list. After all tools: yields <code class="inline">{"tool_done": True}</code> (stops spinners).</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">⑥</div>
+          <div class="timeline-title">Answer Generation — Streaming Chunks</div>
+          <div class="timeline-desc">The balanced answer model (<em>without</em> tools bound — it only generates text) streams the final response. For each chunk, extracts <code class="inline">reasoning_content</code> (chain-of-thought) and <code class="inline">content</code> (actual answer) separately. Each is passed through <code class="inline">_clean()</code> and yielded as <code class="inline">{"reasoning": "..."}</code> or <code class="inline">{"content": "..."}</code> events.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         FULL REQUEST LIFECYCLE
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="lifecycle">
+      <div class="section-header">
+        <div class="section-tag">Deep Dive</div>
+        <h2>Full Request Lifecycle</h2>
+        <p class="lead">A complete walkthrough of exactly what happens from the moment a user presses Enter to when the last character of the response renders in the browser.</p>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--blue)">1</div>
+          <div class="timeline-title">User presses Enter</div>
+          <div class="timeline-desc"><code class="inline">sendMessage()</code> in chat.js fires. The user bubble is immediately appended to the DOM. Input is cleared and disabled. The message is pushed to <code class="inline">chatHistory[]</code>. A bot bubble placeholder with a typing indicator (three animated dots) is created.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--blue)">2</div>
+          <div class="timeline-title">POST /chat</div>
+          <div class="timeline-desc">Fetch API sends <code class="inline">{"message": "...", "history": [...]}</code> to Flask. The history array contains all previous turns except the current one (to avoid including the "empty" bot reply that hasn't been answered yet).</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">3</div>
+          <div class="timeline-title">Flask validates &amp; delegates</div>
+          <div class="timeline-desc"><code class="inline">app.py</code> extracts and validates the message. Returns HTTP 400 if empty, HTTP 503 if chatbot not initialized. Otherwise creates the SSE generator and returns a streaming <code class="inline">Response</code>.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--red)">4</div>
+          <div class="timeline-title">Browser receives: <code>{"status": "🛡️ Checking safety…"}</code></div>
+          <div class="timeline-desc">The status pill in the header changes to amber + "Checking safety…". Meanwhile, both NVIDIA safety models are running concurrently on the server. The browser is already reading the stream; it just has nothing to show yet.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--purple)">5</div>
+          <div class="timeline-title">Browser receives: <code>{"status": "📚 Searching knowledge base…"}</code></div>
+          <div class="timeline-desc">Safety passed. The user's query is now being embedded and searched against ChromaDB. Status updates in the header pill.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--purple)">6</div>
+          <div class="timeline-title">Browser receives: <code>{"sources": [...]}</code></div>
+          <div class="timeline-desc">The list of RAG sources that were retrieved is sent immediately — <em>before the answer starts</em>. chat.js stores this as <code class="inline">ragSources</code> and will display it as attribution badges after the answer finishes.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--cyan)">7</div>
+          <div class="timeline-title">Browser receives: <code>{"status": "Routing…"}</code></div>
+          <div class="timeline-desc">The router model is now running. The prompt with all context + routing hint is being processed. The status pill shows "Routing…".</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--amber)">8a</div>
+          <div class="timeline-title">[If tool needed] Browser receives: <code>{"tool_call": "get_stock_data"}</code></div>
+          <div class="timeline-desc"><code class="inline">showToolCall()</code> inserts a spinning badge "Using get_stock_data ⟳" above the answer bubble. Status changes to "Using get_stock_data…". The actual yfinance call is running on the server.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--amber)">8b</div>
+          <div class="timeline-title">[If tool needed] Browser receives: <code>{"tool_done": true}</code></div>
+          <div class="timeline-desc">All tool spinners are removed. Tool results have been injected into the message list as a SystemMessage on the server. The answer model begins generating.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">9</div>
+          <div class="timeline-title">[Ultra only] Browser receives: <code>{"reasoning": "…"}</code></div>
+          <div class="timeline-desc">For the Nemotron Ultra model, chain-of-thought tokens arrive before content. <code class="inline">updateReasoning()</code> appends each chunk to the think panel (which auto-opens like DeepSeek). Status is still "Thinking…". Scroll is throttled to one rAF per frame.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">10</div>
+          <div class="timeline-title">Browser receives: <code>{"content": "## BlackRock…"}</code> (first content chunk)</div>
+          <div class="timeline-desc">Status pill turns blue and shows "Responding…". The typing indicator dots are replaced by the first rendered Markdown. <code class="inline">updateContent()</code> uses rAF batching — multiple chunks per frame are coalesced into one DOM write. A blinking cursor is appended at the end.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--green)">11</div>
+          <div class="timeline-title">Content chunks stream in…</div>
+          <div class="timeline-desc">Hundreds of partial tokens arrive as individual SSE events. Each one is appended to <code class="inline">fullContent</code>. The entire accumulated Markdown is re-parsed and rendered on every animation frame (not every chunk) to avoid layout thrashing.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--blue)">12</div>
+          <div class="timeline-title">Server sends: <code>data: [DONE]</code></div>
+          <div class="timeline-desc">The SSE stream ends. <code class="inline">finalise()</code> is called: cancels any pending rAF, does a final Markdown render, runs highlight.js on all code blocks, adds "Copy" buttons to code blocks, appends RAG source badges, adds the "Copy response" action button. <code class="inline">chatHistory</code> is updated with the full assistant response.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot" style="background:var(--t3)">13</div>
+          <div class="timeline-title">UI returns to ready state</div>
+          <div class="timeline-desc">Status pill returns to green "FinBot Ready". Input is re-enabled. <code class="inline">streaming</code> flag is set to <code class="inline">false</code>. The send button re-enables when the user starts typing.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SSE STREAMING
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="streaming">
+      <div class="section-header">
+        <div class="section-tag">Deep Dive</div>
+        <h2>Server-Sent Events (SSE) — The Communication Protocol</h2>
+        <p class="lead">FinBot uses SSE instead of WebSockets. SSE is one-directional (server → browser), perfectly suited for AI token streaming, and requires no special server setup beyond <code class="inline">Content-Type: text/event-stream</code>.</p>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <h3 style="color:var(--t1);font-size:.9rem;margin-bottom:12px">Event Types sent by the server</h3>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Payload Shape</th><th>Meaning</th><th>UI Action</th></tr></thead>
+              <tbody>
+                <tr><td><code class="inline">{"status": "…"}</code></td><td>Pipeline stage update</td><td>Update header status pill</td></tr>
+                <tr><td><code class="inline">{"sources": [...]}</code></td><td>RAG results ready</td><td>Store for post-stream display</td></tr>
+                <tr><td><code class="inline">{"tool_call": "name"}</code></td><td>Tool execution started</td><td>Show spinning tool badge</td></tr>
+                <tr><td><code class="inline">{"tool_done": true}</code></td><td>All tools finished</td><td>Remove spinners</td></tr>
+                <tr><td><code class="inline">{"reasoning": "…"}</code></td><td>CoT reasoning token</td><td>Append to think panel</td></tr>
+                <tr><td><code class="inline">{"content": "…"}</code></td><td>Answer token</td><td>Stream Markdown render</td></tr>
+                <tr><td><code class="inline">{"error": "…"}</code></td><td>Non-fatal error</td><td>Show error toast</td></tr>
+                <tr><td><code class="inline">{"error":"…","blocked":true}</code></td><td>Guardrail block</td><td>Show blocked panel</td></tr>
+                <tr><td><code class="inline">[DONE]</code></td><td>Stream ended</td><td>Call finalise(), reset UI</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3 style="color:var(--t1);font-size:.9rem;margin-bottom:12px">SSE Wire Format</h3>
+          <div class="code-block">
+            <div class="code-header"><span class="code-lang">HTTP response body (text/event-stream)</span></div>
+            <pre style="font-size:.72rem">
+data: {"status": "🛡️ Checking safety…"}
+
+data: {"status": "📚 Searching knowledge base…"}
+
+data: {"sources": [{"folder":"BlackRock","file":"outlook.pdf","page":3}]}
+
+data: {"status": "Routing…"}
+
+data: {"tool_call": "get_stock_data"}
+
+data: {"tool_done": true}
+
+data: {"status": "📝 Composing answer…"}
+
+data: {"reasoning": "The user is asking about AAPL stock. I should…"}
+
+data: {"content": "## Apple Inc. (AAPL)\n\n"}
+
+data: {"content": "**Current Price:** $217.96\n"}
+
+data: {"content": "Based on the fundamentals…"}
+
+data: [DONE]
+</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box green" style="margin-top:16px">
+        <span class="info-icon">🔧</span>
+        <div class="info-content"><p><strong>Flask headers:</strong> <code class="inline">Cache-Control: no-cache</code> prevents proxy/CDN buffering. <code class="inline">X-Accel-Buffering: no</code> disables nginx response buffering. Both are required for real-time streaming to work in production environments. <code class="inline">stream_with_context()</code> ensures Flask's request context is available inside the generator even in threaded mode.</p></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         AI MODELS
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="models">
+      <div class="section-header">
+        <div class="section-tag">Deep Dive</div>
+        <h2>AI Models Used</h2>
+        <p class="lead">FinBot orchestrates up to 6 different AI models in a single request pipeline — 2 safety classifiers running in parallel, 1 embedding model, 1 router model, and 1 answer model. All hosted on NVIDIA AI Endpoints.</p>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model ID</th>
+              <th>Role</th>
+              <th>Called In</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code class="inline">nvidia/nemotron-3.5-content-safety</code></td>
+              <td><span class="card-badge badge-red">Guard 1</span></td>
+              <td>guardrails.py</td>
+              <td>Multimodal/multilingual safety. Returns text verdict with category breakdown. Runs with <code class="inline">enable_thinking: True</code>.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">nvidia/llama-3.1-nemotron-safety-guard-8b-v3</code></td>
+              <td><span class="card-badge badge-red">Guard 2</span></td>
+              <td>guardrails.py</td>
+              <td>23-category JSON classifier. 8B parameter model — fast. Runs in parallel with Guard 1.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">nvidia/llama-nemotron-embed-1b-v2</code></td>
+              <td><span class="card-badge badge-purple">Embeddings</span></td>
+              <td>rag.py + ingest.py</td>
+              <td>Converts text to dense vectors. Must be the same model for both indexing and querying. 1B params = fast + accurate.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">meta/llama-3.3-70b-instruct</code></td>
+              <td><span class="card-badge badge-blue">Answer (llama)</span></td>
+              <td>chain.py</td>
+              <td>Default model. No chain-of-thought. Fastest option. Best tool-use compliance. 120s timeout.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">nvidia/nemotron-3-super-120b-a12b</code></td>
+              <td><span class="card-badge badge-blue">Answer (super)</span></td>
+              <td>chain.py</td>
+              <td>120B MoE model. No thinking. Good balance of speed and quality. 180s timeout.</td>
+            </tr>
+            <tr>
+              <td><code class="inline">nvidia/nemotron-3-ultra-550b-a55b</code></td>
+              <td><span class="card-badge badge-green">Answer (ultra)</span></td>
+              <td>chain.py</td>
+              <td>550B MoE model. Full chain-of-thought reasoning. Creates 4 instances (3 reasoning budgets + 1 router). 600s timeout. Emits <code class="inline">reasoning_content</code> separate from answer content.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box blue" style="margin-top:16px">
+        <span class="info-icon">💡</span>
+        <div class="info-content"><p><strong>Why use a separate router model?</strong> The answer model (especially Ultra 550B) is expensive and slow to start. Making it decide whether to call a tool wastes valuable reasoning budget. A tiny 512-token-budget router model can make the routing decision in seconds, then the powerful model focuses entirely on generating a quality financial answer.</p></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TECH STACK
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="section" id="tech-stack">
+      <div class="section-header">
+        <div class="section-tag">Reference</div>
+        <h2>Technology Stack</h2>
+        <p class="lead">Every library and external API used in the project, with its exact role.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title"><span style="color:var(--green)">🌐</span> Flask <span class="card-badge badge-green">Web</span></div>
+          <p>Python web framework. Handles HTTP routing, Jinja2 templating, and SSE response streaming. Runs in threaded mode for concurrent SSE connections.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--blue)">🔗</span> LangChain <span class="card-badge badge-blue">AI Orchestration</span></div>
+          <p>Provides <code class="inline">ChatPromptTemplate</code>, <code class="inline">FewShotChatMessagePromptTemplate</code>, <code class="inline">MessagesPlaceholder</code>, <code class="inline">RunnableParallel</code>, <code class="inline">RunnableLambda</code>, <code class="inline">@tool</code> decorator, and message type classes.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--green3)">🤖</span> langchain-nvidia-ai-endpoints <span class="card-badge badge-green">LLM Client</span></div>
+          <p>Official NVIDIA wrapper for <code class="inline">ChatNVIDIA</code> and <code class="inline">NVIDIAEmbeddings</code>. Supports streaming, tool-calling, reasoning_budget, and chat_template_kwargs for enabling thinking mode.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--purple)">🗄️</span> ChromaDB <span class="card-badge badge-purple">Vector DB</span></div>
+          <p>Embedded vector database that persists to disk. Stores document embeddings in a SQLite file. Provides cosine similarity search with relevance score filtering. No server required.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--amber)">📄</span> pypdf <span class="card-badge badge-amber">PDF Parsing</span></div>
+          <p>Extracts text from PDF files page by page during the <code class="inline">ingest.py</code> pipeline. Used only at ingestion time, not at query time.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--amber)">✂️</span> langchain-text-splitters <span class="card-badge badge-amber">Chunking</span></div>
+          <p><code class="inline">RecursiveCharacterTextSplitter</code> splits documents into 1000-char chunks with 200-char overlap. The recursive approach tries to split on paragraphs first, then sentences, then words.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--cyan)">📊</span> yfinance <span class="card-badge badge-cyan">Market Data</span></div>
+          <p>Unofficial Yahoo Finance Python wrapper. Used in two places: the <code class="inline">get_stock_data</code> tool (per-ticker fundamentals) and the <code class="inline">/api/market</code> endpoint (batch sidebar/tape data). No API key required.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--blue2)">🔎</span> Tavily <span class="card-badge badge-blue">Web Search</span></div>
+          <p>AI-optimized web search API. Used in <code class="inline">search_financial_web</code> tool with <code class="inline">search_depth="advanced"</code> and <code class="inline">topic="finance"</code> filter for relevant, recent financial news. Requires <code class="inline">TAVILY_API_KEY</code>.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--amber2)">🪙</span> CoinGecko API <span class="card-badge badge-amber">Crypto Data</span></div>
+          <p>Free, no-auth cryptocurrency price API. Used in both the <code class="inline">get_crypto_price</code> tool (per-coin lookup) and the <code class="inline">/api/market</code> endpoint (BTC/ETH sidebar data). Accessed via raw <code class="inline">requests.get()</code>.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--green)">⚙️</span> python-dotenv <span class="card-badge badge-green">Config</span></div>
+          <p>Loads <code class="inline">.env</code> file variables (<code class="inline">NVIDIA_API_KEY</code>, <code class="inline">TAVILY_API_KEY</code>, <code class="inline">FINBOT_MODEL</code>) into environment variables at startup. Called in both <code class="inline">app.py</code> and <code class="inline">ingest.py</code>.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--blue)">📝</span> marked.js <span class="card-badge badge-blue">Frontend</span></div>
+          <p>Markdown → HTML renderer running in the browser. Called on every animation frame during streaming to render partial Markdown responses. Configured with GitHub-Flavored Markdown and highlight.js integration.</p>
+        </div>
+        <div class="card">
+          <div class="card-title"><span style="color:var(--purple2)">🎨</span> highlight.js <span class="card-badge badge-purple">Frontend</span></div>
+          <p>Syntax highlighter for code blocks. Applied in <code class="inline">finalise()</code> (not during streaming — to avoid constant re-highlighting). Uses the <code class="inline">github-dark</code> theme.</p>
+        </div>
+      </div>
+
+      <h3 style="color:var(--t1);font-size:1rem;margin-top:28px;margin-bottom:12px">Environment Variables Required</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Required</th><th>Used By</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">NVIDIA_API_KEY</code></td><td><span class="card-badge badge-red">Required</span></td><td>chain.py, guardrails.py, rag.py, ingest.py</td><td>API key for all NVIDIA AI Endpoints (LLMs, safety models, embeddings)</td></tr>
+            <tr><td><code class="inline">TAVILY_API_KEY</code></td><td><span class="card-badge badge-amber">Optional</span></td><td>tools.py</td><td>Required for web search tool. If missing, the tool returns a graceful "unavailable" message.</td></tr>
+            <tr><td><code class="inline">FINBOT_MODEL</code></td><td><span class="card-badge badge-green">Optional</span></td><td>chain.py, app.py</td><td>Which answer model to use: <code class="inline">llama</code> / <code class="inline">super</code> / <code class="inline">ultra</code>. Defaults to <code class="inline">llama</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         FOOTER
+    ═══════════════════════════════════════════════════════════ -->
+    <div style="text-align:center;padding:40px 0;color:var(--t4);font-size:.78rem">
+      <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
+      <p>FinBot Project — Full System Explanation</p>
+      <p style="margin-top:4px">Built on NVIDIA AI Endpoints · LangChain · Flask · ChromaDB</p>
+    </div>
+
+  </main>
+</div>
+
+<!-- Scroll to top -->
+<button class="scroll-top" id="scrollTop" title="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<script>
+/* ── Reading progress bar ─────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  const doc   = document.documentElement;
+  const total = doc.scrollHeight - doc.clientHeight;
+  const pct   = total > 0 ? (doc.scrollTop / total) * 100 : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  const btn = document.getElementById('scrollTop');
+  btn.classList.toggle('visible', doc.scrollTop > 300);
+}, {passive: true});
+
+/* ── Sidebar active link ──────────────────────────────────────── */
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* Intersection Observer — auto-highlight active section in sidebar */
+const sections = document.querySelectorAll('.section[id], .hero[id]');
+const navItems = document.querySelectorAll('.nav-item[href]');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(n => {
+        n.classList.toggle('active', n.getAttribute('href') === '#'+id);
+      });
+    }
+  });
+}, {rootMargin: '-30% 0px -60% 0px'});
+sections.forEach(s => obs.observe(s));
+
+/* ── Toggle cards ─────────────────────────────────────────────── */
+function toggleCard(card) {
+  card.classList.toggle('open');
+}
+
+/* ── Copy code blocks ─────────────────────────────────────────── */
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+  });
+});
+
+/* ── Animate cards on scroll ─────────────────────────────────── */
+const cardObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, {threshold: 0.1});
+
+document.querySelectorAll('.card, .toggle-card, .pipe-step').forEach(el => {
+  el.style.opacity    = '0';
+  el.style.transform  = 'translateY(20px)';
+  el.style.transition = 'opacity .4s ease, transform .4s ease';
+  cardObs.observe(el);
+});
+
+/* Immediately reveal already-visible elements */
+document.querySelectorAll('.card, .toggle-card, .pipe-step').forEach(el => {
+  const rect = el.getBoundingClientRect();
+  if (rect.top < window.innerHeight) {
+    el.style.opacity   = '1';
+    el.style.transform = 'translateY(0)';
+  }
+});
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import time
 import warnings
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from chatbot.prompts import PROMPT_TEMPLATE, NON_ADVISORY_NOTE
+from chatbot.prompts import PROMPT_TEMPLATE, NON_ADVISORY_NOTE, ROUTER_PROMPT
 from chatbot.guardrails import guardrail_chain, GuardrailError
 from chatbot.rag import retrieve
 from chatbot.tools import FINBOT_TOOLS
@@ -28,28 +28,35 @@ def _clean(text: str) -> str:
 
 
 # ── Model configurations ─────────────────────────────────────────────────────
-# Set FINBOT_MODEL=llama / super / ultra in your .env.  Defaults to 'llama'.
+# Set FINBOT_MODEL=llama / super / ultra in your .env.
+#
+# enable_thinking controls chat_template_kwargs sent to the NVIDIA API:
+#   True  → {"enable_thinking": True}   — Nemotron reasoning ON  (ultra)
+#   False → {"enable_thinking": False}  — Nemotron reasoning OFF (super)
+#           Needed because Nemotron-Super defaults to thinking ON at the API
+#           level; omitting the flag does NOT disable it.
+#   None  → chat_template_kwargs not sent at all (llama — flag unsupported)
 _MODEL_CONFIGS = {
     "llama": {
-        "model":       "meta/llama-3.3-70b-instruct",
-        "timeout":     120,   # 60 s was too short when answer follows a tool call
-        "thinking":    False,   # no reasoning overhead — fastest, best tool use
-        "temperature": 0.2,
-        "top_p":       0.7,
+        "model":          "meta/llama-3.3-70b-instruct",
+        "timeout":        120,
+        "enable_thinking": None,   # doesn't support the toggle
+        "temperature":    0.2,
+        "top_p":          0.7,
     },
     "super": {
-        "model":       "nvidia/nemotron-3-super-120b-a12b",
-        "timeout":     180,
-        "thinking":    False,  # no reasoning overhead — fastest, best tool use
-        "temperature": 0.5,
-        "top_p":       0.95,
+        "model":          "nvidia/nemotron-3-super-120b-a12b",
+        "timeout":        180,
+        "enable_thinking": False,  # supports toggle — explicitly OFF for speed
+        "temperature":    0.5,
+        "top_p":          0.95,
     },
     "ultra": {
-        "model":       "nvidia/nemotron-3-ultra-550b-a55b",
-        "timeout":     600,
-        "thinking":    True,
-        "temperature": 0.5,
-        "top_p":       0.95,
+        "model":          "nvidia/nemotron-3-ultra-550b-a55b",
+        "timeout":        600,
+        "enable_thinking": True,   # supports toggle — explicitly ON for deep reasoning
+        "temperature":    0.5,
+        "top_p":          0.95,
     },
 }
 
@@ -104,10 +111,10 @@ class FinancialChatbot:
         if not api_key:
             raise ValueError("NVIDIA_API_KEY environment variable is not set.")
 
-        _model_key = os.environ.get("FINBOT_MODEL", "llama").strip().lower()
-        _cfg       = _MODEL_CONFIGS.get(_model_key, _MODEL_CONFIGS["llama"])
-        _thinking  = _cfg["thinking"]
-        print(f"[FinBot] model={_cfg['model']}  thinking={_thinking}  (FINBOT_MODEL={_model_key!r})")
+        _model_key      = os.environ.get("FINBOT_MODEL", "llama").strip().lower()
+        _cfg            = _MODEL_CONFIGS.get(_model_key, _MODEL_CONFIGS["llama"])
+        _enable_thinking = _cfg["enable_thinking"]   # True | False | None
+        print(f"[FinBot] model={_cfg['model']}  enable_thinking={_enable_thinking}  (FINBOT_MODEL={_model_key!r})")
 
         _base_cfg = dict(
             model=_cfg["model"],
@@ -118,9 +125,13 @@ class FinancialChatbot:
             timeout=_cfg["timeout"],
         )
 
-        if _thinking:
-            # Reasoning models: one instance per thinking-depth level
-            _base_cfg["chat_template_kwargs"] = {"enable_thinking": True}
+        # Only set chat_template_kwargs when the model actually supports the flag.
+        # Omitting it for llama avoids an unsupported-parameter warning.
+        if _enable_thinking is not None:
+            _base_cfg["chat_template_kwargs"] = {"enable_thinking": _enable_thinking}
+
+        if _enable_thinking:
+            # Reasoning model with thinking ON — create one instance per budget level
             self._models = {
                 "fast":     ChatNVIDIA(**_base_cfg, reasoning_budget=1024),
                 "balanced": ChatNVIDIA(**_base_cfg, reasoning_budget=4096),
@@ -128,12 +139,12 @@ class FinancialChatbot:
             }
             self._router_model = ChatNVIDIA(**_base_cfg, reasoning_budget=512)
         else:
-            # Non-thinking model (e.g. Llama): single instance for all levels
+            # Thinking disabled or unsupported — single instance reused for all levels
             _m = ChatNVIDIA(**_base_cfg)
             self._models = {"fast": _m, "balanced": _m, "deep": _m}
             self._router_model = _m
 
-        self._thinking = _thinking
+        self._thinking = bool(_enable_thinking)
         self._tool_map = {t.name: t for t in FINBOT_TOOLS}
         self._agent_models = {
             level: model.bind_tools(FINBOT_TOOLS)
@@ -176,29 +187,23 @@ class FinancialChatbot:
         # ─ Step 4: tool routing (dedicated fast router) ──────────────────────
         _model = self._models["balanced"]  # answer model (4 096-token budget for reasoning models)
 
-        # Inject a routing guardrail so the router only calls tools when the
-        # query genuinely requires one.  Without this, the router defaults to
-        # search_financial_web for greetings, general questions, etc.
-        _routing_hint = (
-            "Call a tool ONLY when the user explicitly needs one:\n"
-            "- Live stock price, P/E, or market cap → get_stock_data\n"
-            "- Live crypto price → get_crypto_price\n"
-            "- Recent news, earnings, or analyst upgrade/downgrade → search_financial_web\n"
-            "- Compound growth or loan payment calculation → calculator tools\n"
-            "For greetings, general questions, educational topics, or anything "
-            "answerable from the knowledge base above → call NO tools."
-        )
+        # The router only needs the routing rules + the user's message.
+        # ROUTER_PROMPT lives in prompts.py (single source of truth for all prompts).
+        _router_system = ROUTER_PROMPT
         if context:
-            _routing_hint += (
-                "\nThe knowledge base already has relevant information for this "
+            _router_system += (
+                "\nNOTE: A knowledge base already has relevant information for this "
                 "query — do NOT call search_financial_web."
             )
-        messages.append(SystemMessage(content=_routing_hint))
+        _router_messages = [
+            SystemMessage(content=_router_system),
+            HumanMessage(content=user_message),
+        ]
 
         yield {"status": "Routing…"}
         t0 = time.time()
         ai_msg = None
-        for _chunk in self._router_agent.stream(messages):
+        for _chunk in self._router_agent.stream(_router_messages):
             ai_msg = _chunk if ai_msg is None else ai_msg + _chunk
         t_route = time.time() - t0
         tool_calls = getattr(ai_msg, "tool_calls", [])
