@@ -298,7 +298,9 @@ What is Apple's current stock price, P/E ratio, and analyst recommendation?
 
 **Tool 3 — `get_crypto_price` (CoinGecko)**
 What is Bitcoin's price right now and how much has it changed in the last 24 hours?
-
+trigger: label='user safety: unsafe\nsafety categories: pii/privacy'
+vs
+What is Bitcoin's price right now?
 ---
 
 **Tool 4 — `calculate_compound_growth`**

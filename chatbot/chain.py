@@ -47,7 +47,7 @@ _MODEL_CONFIGS = {
     "super": {
         "model":          "nvidia/nemotron-3-super-120b-a12b",
         "timeout":        180,
-        "enable_thinking": False,  # supports toggle — explicitly OFF for speed
+        "enable_thinking": True,  # supports toggle — explicitly OFF for speed
         "temperature":    0.5,
         "top_p":          0.95,
     },

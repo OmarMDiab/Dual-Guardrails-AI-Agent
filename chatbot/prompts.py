@@ -106,8 +106,10 @@ _few_shot_prompt = FewShotChatMessagePromptTemplate(
 
 PROMPT_TEMPLATE = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
-    _few_shot_prompt,
-    MessagesPlaceholder(variable_name="chat_history"),
+    ("system", "── STYLE REFERENCE EXAMPLES — these are NOT from the current user's conversation ──"),
+    _few_shot_prompt, # Few-shot examples of how to answer financial questions
+    ("system", "── END OF EXAMPLES — the actual conversation with the current user starts below ──"),
+    MessagesPlaceholder(variable_name="chat_history"),  # HumanMessage + AIMessage pairs from the current conversation
     ("system", "Relevant excerpts from the knowledge base — use these to ground your answer when applicable:\n{context}"),
     ("system", "{guardrail_note}"),
     ("human", "{input}"),
